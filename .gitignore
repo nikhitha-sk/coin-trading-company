@@ -1,0 +1,24 @@
+# Binaries and build output
+/backend/bin/
+*.exe
+*.test
+*.out
+coverage.*
+
+# Env files (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Frontend (Phase 2)
+node_modules/
+.next/
+
+# Original spec PDFs kept outside the repo (the current spec lives in docs/spec.pdf)
+/06_*.pdf

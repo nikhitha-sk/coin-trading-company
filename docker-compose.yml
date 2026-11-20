@@ -1,0 +1,51 @@
+name: coin-trading-company
+
+# Local development stack.
+# Host ports are deliberately unusual (55432, 56379, 8081) so they don't clash
+# with a Postgres/Redis/web server you may already run locally.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: coin
+      POSTGRES_PASSWORD: coin
+      POSTGRES_DB: coin
+    ports:
+      - "55432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coin -d coin"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "56379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      APP_ENV: dev
+      HTTP_ADDR: ":8081"
+      DATABASE_URL: postgres://coin:coin@postgres:5432/coin?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      SESSION_SECRET: dev-only-secret-change-me
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
