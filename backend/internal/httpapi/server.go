@@ -47,6 +47,7 @@ func NewServer(d Deps) http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(15 * time.Second))
 
+	r.Get("/", s.handleIndex)
 	r.Get("/healthz", s.handleHealth)
 
 	r.Get("/cards", s.handleListCards)
@@ -85,6 +86,24 @@ func (s *server) requireUser(next http.Handler) http.Handler {
 }
 
 func userID(r *http.Request) int64 { return r.Context().Value(userIDKey).(int64) }
+
+// handleIndex lists the endpoints, so opening the API in a browser isn't a bare 404.
+// (The web UI arrives in Phase 2.)
+func (s *server) handleIndex(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"name":   "Coin Trading Company API",
+		"status": "running",
+		"note":   "This is the backend API only. The web UI comes in Phase 2.",
+		"try_in_browser": []string{
+			"/healthz",
+			"/cards",
+			"/cards/golden-monkey",
+			"/quote?card=golden-monkey&side=buy&qty=10",
+			"/dev/reconcile",
+		},
+		"needs_login": []string{"POST /dev/login", "GET /me", "GET /me/holdings", "POST /trades"},
+	})
+}
 
 func (s *server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
