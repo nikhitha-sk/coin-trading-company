@@ -41,6 +41,13 @@ func run(log *slog.Logger) error {
 	}
 	defer pool.Close()
 
+	if err := db.Migrate(ctx, pool); err != nil {
+		return err
+	}
+	if err := db.Seed(ctx, pool); err != nil {
+		return err
+	}
+
 	redisOpts, err := redis.ParseURL(cfg.RedisURL)
 	if err != nil {
 		return err
