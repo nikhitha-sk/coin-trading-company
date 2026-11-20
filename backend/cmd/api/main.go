@@ -13,9 +13,12 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
+	"github.com/nikhitha-sk/coin-trading-company/backend/internal/auth"
 	"github.com/nikhitha-sk/coin-trading-company/backend/internal/config"
 	"github.com/nikhitha-sk/coin-trading-company/backend/internal/db"
 	"github.com/nikhitha-sk/coin-trading-company/backend/internal/httpapi"
+	"github.com/nikhitha-sk/coin-trading-company/backend/internal/ledger"
+	"github.com/nikhitha-sk/coin-trading-company/backend/internal/market"
 )
 
 func main() {
@@ -55,9 +58,24 @@ func run(log *slog.Logger) error {
 	rdb := redis.NewClient(redisOpts)
 	defer rdb.Close()
 
+	l, err := ledger.Load(ctx, pool)
+	if err != nil {
+		return err
+	}
+
+	handler := httpapi.NewServer(httpapi.Deps{
+		Config:   cfg,
+		DB:       pool,
+		Redis:    rdb,
+		Log:      log,
+		Users:    auth.NewService(pool, l),
+		Market:   market.NewService(pool, l),
+		Sessions: auth.NewSessions(cfg.SessionSecret, cfg.IsProd()),
+	})
+
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewServer(httpapi.Deps{Config: cfg, DB: pool, Redis: rdb, Log: log}),
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
