@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+        shell: bash # explicit bash => -eo pipefail, so `go test | tee` still fails the job
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: coin
+          POSTGRES_PASSWORD: coin
+          POSTGRES_DB: coin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U coin -d coin"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+    env:
+      TEST_DATABASE_URL: postgres://coin:coin@localhost:5432/postgres?sslmode=disable
+      STRESS_SECONDS: "10"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then echo "Not gofmt-ed:"; echo "$unformatted"; exit 1; fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: Tests (with race detector)
+        run: go test -count=1 -race -v ./... 2>&1 | tee test.log
+
+      - name: Stress test summary
+        if: always()
+        run: grep -E "trades executed" test.log || true
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -t coin-trading-company-api ./backend
