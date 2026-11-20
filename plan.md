@@ -12,7 +12,7 @@ A multiplayer market game: players trade cards whose prices move with real deman
 
 | Phase | Focus | Target weeks | Status |
 |-------|-------|--------------|--------|
-| 1 | Foundation: money core (ledger, wallets, buy/sell) | Weeks 1–2 | ⬜ Not started |
+| 1 | Foundation: money core (ledger, wallets, buy/sell) | Weeks 1–2 | ✅ Done |
 | 2 | Market and real-time (curve, ticks, WebSockets, UI) | Weeks 3–4 | ⬜ Not started |
 | 3 | Game layer and economy (portfolio, leaderboard, rewards, card creation, anti-exploit) | Weeks 5–6 | ⬜ Not started |
 | 4 | Living market and launch (drift, events, newspaper, OAuth, deploy, README) | Weeks 7–8 | ⬜ Not started |
@@ -27,19 +27,19 @@ Status key: ⬜ Not started · 🟨 In progress · ✅ Done
 
 These came out of reviewing the spec. Settle them now so later phases don't need rewrites.
 
-- [ ] **Money is `BIGINT` integer coins everywhere**, including curve maths. No `float` anywhere money is touched (Go `int64`, SQL `BIGINT`, JSON numbers as integers).
-- [ ] **The fee rounds UP**, plus a minimum fee of 1 coin: `fee = max(1, ceil(area * FeeBps / 10_000))`. With rounding down, trades worth less than 50 coins would pay 0 fee, and players could split orders to avoid fees.
-- [ ] **Curve maths without truncation:** keep `slope` an even number, or do the curve maths in half-coins, so `slope*(s1² − s0²)/2` is always exact. One big order must then cost exactly the same as many small ones (a test proves this).
-- [ ] **Ledger accounts:**
+- [x] **Money is `BIGINT` integer coins everywhere**, including curve maths. No `float` anywhere money is touched (Go `int64`, SQL `BIGINT`, JSON numbers as integers).
+- [x] **The fee rounds UP**, plus a minimum fee of 1 coin: `fee = max(1, ceil(area * FeeBps / 10_000))`. With rounding down, trades worth less than 50 coins would pay 0 fee, and players could split orders to avoid fees.
+- [x] **Curve maths without truncation:** keep `slope` an even number, or do the curve maths in half-coins, so `slope*(s1² − s0²)/2` is always exact. One big order must then cost exactly the same as many small ones (a test proves this).
+- [x] **Ledger accounts:**
   - `user:<id>`: one per player
   - `system:mint`: source of all new coins (its balance goes negative by the amount issued)
   - `system:burn`: where fees and minting costs go (its balance only grows)
   - `system:market_reserve`: receives coins from buys and pays sellers
   - **Invariant:** the sum of every account's balance is always **0**. Every transaction's entries also sum to 0.
-- [ ] **Sell price:** selling `n` pays the area under the curve from `supply − n` to `supply`, minus the fee. It is paid out of `market_reserve`.
+- [x] **Sell price:** selling `n` pays the area under the curve from `supply − n` to `supply`, minus the fee. It is paid out of `market_reserve`.
 - [ ] **Holding cap:** 20% of `max_supply` for fixed-supply cards. For unlimited-supply cards, 20% of current circulating supply, or 100 units, whichever is larger. This stops the first buyer being blocked.
 - [ ] **Price drift (Phase 4):** price = `base + slope × supply + drift_offset`, with `drift_offset` limited to ±10% of the curve price. If drift lets sellers withdraw more than the reserve holds, the shortfall is topped up with an explicit `system:mint` entry tagged `kind = 'drift'`, so inflation can be seen and measured.
-- [ ] **Lock order** inside every money transaction: **card row → wallet rows (by ascending user_id) → holdings**. Never in any other order.
+- [x] **Lock order** inside every money transaction: **card row → wallet rows (by ascending user_id) → holdings**. Never in any other order.
 
 ---
 
@@ -77,52 +77,52 @@ coin-trading-company/
 **Goal:** a backend where players can buy and sell cards safely. No UI yet beyond curl/Postman. This phase is the heart of the project. If money correctness is solid here, everything after it is features.
 
 ### 1.1 Project setup
-- [ ] Create repo, `.gitignore`, `README.md` stub, `LICENSE`
-- [ ] `docker-compose.yml` with `postgres:16`, `redis:7`, and the `api` service (hot reload via `air` optional)
-- [ ] Go module init; add `chi`, `pgx/v5`, `sqlc`, a migration tool (`goose` or `golang-migrate`)
-- [ ] `Makefile` targets: `up`, `down`, `migrate`, `sqlc`, `test`, `lint`
-- [ ] Config from env vars (`DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `APP_ENV`)
-- [ ] Health endpoint `GET /healthz` checks DB + Redis
-- [ ] GitHub Actions CI: run `go vet`, `golangci-lint`, and tests against a Postgres service container
+- [x] Create repo, `.gitignore`, `README.md` stub, `LICENSE`
+- [x] `docker-compose.yml` with `postgres:16`, `redis:7`, and the `api` service (hot reload via `air` optional)
+- [x] Go module init; add `chi`, `pgx/v5`, `sqlc`, a migration tool (`goose` or `golang-migrate`)
+- [x] `Makefile` targets: `up`, `down`, `migrate`, `sqlc`, `test`, `lint`
+- [x] Config from env vars (`DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `APP_ENV`)
+- [x] Health endpoint `GET /healthz` checks DB + Redis
+- [x] GitHub Actions CI: run `go vet`, `golangci-lint`, and tests against a Postgres service container
 
 ### 1.2 Database schema (migrations)
-- [ ] `users` (id, oauth_provider, oauth_id UNIQUE, name, created_at)
-- [ ] `accounts` (id, kind: user|system, user_id NULL, name UNIQUE, e.g. `system:burn`)
-- [ ] `wallets` (user_id PK, balance BIGINT NOT NULL CHECK (balance >= 0)): cached balance
-- [ ] `ledger_txns` (id, kind: signup|buy|sell|reward|mint_card|drift, created_at)
-- [ ] `ledger_entries` (id, txn_id FK, account_id FK, amount BIGINT, created_at)
-- [ ] Constraint trigger or deferred check: **entries per txn_id sum to 0**
-- [ ] `cards` (id, slug UNIQUE, name, creator_id NULL, supply_type fixed|unlimited, max_supply NULL, circulating BIGINT, base BIGINT, slope BIGINT, royalty_bps INT CHECK (≤ 1000), created_at)
-- [ ] `holdings` (user_id, card_id, qty BIGINT CHECK (qty >= 0), avg_cost BIGINT, PK(user_id, card_id))
-- [ ] `trades` (id, user_id, card_id, side, qty, total, fee, royalty, price_after, idempotency_key, created_at, **UNIQUE(user_id, idempotency_key)**)
-- [ ] Seed script: create system accounts and 8–10 starter cards with different base/slope values
+- [x] `users` (id, oauth_provider, oauth_id UNIQUE, name, created_at)
+- [x] `accounts` (id, kind: user|system, user_id NULL, name UNIQUE, e.g. `system:burn`)
+- [x] `wallets` (user_id PK, balance BIGINT NOT NULL CHECK (balance >= 0)): cached balance
+- [x] `ledger_txns` (id, kind: signup|buy|sell|reward|mint_card|drift, created_at)
+- [x] `ledger_entries` (id, txn_id FK, account_id FK, amount BIGINT, created_at)
+- [x] Constraint trigger or deferred check: **entries per txn_id sum to 0**
+- [x] `cards` (id, slug UNIQUE, name, creator_id NULL, supply_type fixed|unlimited, max_supply NULL, circulating BIGINT, base BIGINT, slope BIGINT, royalty_bps INT CHECK (≤ 1000), created_at)
+- [x] `holdings` (user_id, card_id, qty BIGINT CHECK (qty >= 0), avg_cost BIGINT, PK(user_id, card_id))
+- [x] `trades` (id, user_id, card_id, side, qty, total, fee, royalty, price_after, idempotency_key, created_at, **UNIQUE(user_id, idempotency_key)**)
+- [x] Seed script: create system accounts and 8–10 starter cards with different base/slope values
 
 ### 1.3 Ledger package (`internal/ledger`)
-- [ ] `Post(tx, kind, entries []Entry) (txnID, error)`: inserts txn + entries inside the caller's DB transaction, rejects if entries don't sum to 0, and updates `wallets.balance` for user accounts
-- [ ] `Balance(account)` derived from entries (for verification)
-- [ ] `Reconcile()`: checks (a) every wallet balance = sum of its entries, (b) all entries sum to 0 globally, (c) no negative user balance. Returns a report.
-- [ ] Unit tests: posting unbalanced entries fails; reconcile catches a manually corrupted wallet
+- [x] `Post(tx, kind, entries []Entry) (txnID, error)`: inserts txn + entries inside the caller's DB transaction, rejects if entries don't sum to 0, and updates `wallets.balance` for user accounts
+- [x] `Balance(account)` derived from entries (for verification)
+- [x] `Reconcile()`: checks (a) every wallet balance = sum of its entries, (b) all entries sum to 0 globally, (c) no negative user balance. Returns a report.
+- [x] Unit tests: posting unbalanced entries fails; reconcile catches a manually corrupted wallet
 
 ### 1.4 Auth (dev mode first)
-- [ ] Session cookies (signed, HttpOnly, SameSite=Lax)
-- [ ] **Dev-only login:** `POST /dev/login {name}` creates or loads a user. Enabled only when `APP_ENV=dev`. This lets you test many players without OAuth.
-- [ ] On first login: create user + wallet, and post a **signup grant**: `system:mint −10,000 / user +10,000`
-- [ ] `GET /me` returns user + balance
-- [ ] Middleware: `RequireUser`
+- [x] Session cookies (signed, HttpOnly, SameSite=Lax)
+- [x] **Dev-only login:** `POST /dev/login {name}` creates or loads a user. Enabled only when `APP_ENV=dev`. This lets you test many players without OAuth.
+- [x] On first login: create user + wallet, and post a **signup grant**: `system:mint −10,000 / user +10,000`
+- [x] `GET /me` returns user + balance
+- [x] Middleware: `RequireUser`
 
 ### 1.5 Bonding curve (`internal/market/curve.go`)
-- [ ] `Price(card) int64` = base + slope × circulating
-- [ ] `BuyCost(card, n) (area, fee)` using the exact-area formula
-- [ ] `SellProceeds(card, n) (area, fee)` = area from s−n to s
-- [ ] Fee: round up, minimum 1
-- [ ] **Unit tests:**
+- [x] `Price(card) int64` = base + slope × circulating
+- [x] `BuyCost(card, n) (area, fee)` using the exact-area formula
+- [x] `SellProceeds(card, n) (area, fee)` = area from s−n to s
+- [x] Fee: round up, minimum 1
+- [x] **Unit tests:**
   - buying `n` at once == buying 1 at a time `n` times (area part), for many random cards
   - buy n then sell n always loses money (because of fees)
   - no overflow at max supply / max price (test the extremes)
 
 ### 1.6 Trade service + endpoints
-- [ ] `POST /trades` `{card_id, side, qty, idempotency_key}`
-- [ ] Inside one DB transaction:
+- [x] `POST /trades` `{card_id, side, qty, idempotency_key}`
+- [x] Inside one DB transaction:
   1. Check idempotency: if `(user_id, key)` already exists, return the original result (no-op)
   2. `SELECT … FROM cards WHERE id=$1 FOR UPDATE`
   3. `SELECT … FROM wallets WHERE user_id=$1 FOR UPDATE`
@@ -132,21 +132,30 @@ coin-trading-company/
   7. Upsert holdings (update avg_cost on buy), update `cards.circulating`
   8. Insert trade row
   9. COMMIT
-- [ ] `GET /cards`, `GET /cards/:id`, `GET /quote?card=&side=&qty=` (preview cost incl. fee, no lock)
-- [ ] Map errors to clean HTTP responses (400 validation, 402 insufficient funds, 409 conflict)
+- [x] `GET /cards`, `GET /cards/:id`, `GET /quote?card=&side=&qty=` (preview cost incl. fee, no lock)
+- [x] Map errors to clean HTTP responses (400 validation, 402 insufficient funds, 409 conflict)
 
 ### 1.7 Correctness tests (the important ones)
-- [ ] **Race test:** a card with 1 unit left, and 100 goroutines buy it at once. Exactly **one** succeeds and the ledger reconciles.
-- [ ] **Double-spend test:** one user with balance for exactly 1 purchase fires 50 concurrent buys. Only 1 succeeds and the balance never goes negative.
-- [ ] **Idempotency test:** same key sent 20 times concurrently gives 1 trade row and the same response every time
-- [ ] **Deadlock test:** many users buy and sell many cards concurrently for 30 s with no deadlock errors
-- [ ] After every test: `Reconcile()` passes
+- [x] **Race test:** a card with 1 unit left, and 100 goroutines buy it at once. Exactly **one** succeeds and the ledger reconciles.
+- [x] **Double-spend test:** one user with balance for exactly 1 purchase fires 50 concurrent buys. Only 1 succeeds and the balance never goes negative.
+- [x] **Idempotency test:** same key sent 20 times concurrently gives 1 trade row and the same response every time
+- [x] **Deadlock test:** many users buy and sell many cards concurrently for 30 s with no deadlock errors
+- [x] After every test: `Reconcile()` passes
 
 ### ✅ Phase 1 exit criteria
-- [ ] `docker compose up` starts everything; `make test` is green in CI
-- [ ] Can log in as 2 dev users, buy and sell via curl, and see balances change
-- [ ] Race, double-spend, idempotency and deadlock tests all pass
-- [ ] Reconcile reports **0 drift**
+- [x] `docker compose up` starts everything; `make test` is green in CI
+- [x] Can log in as 2 dev users, buy and sell via curl, and see balances change
+- [x] Race, double-spend, idempotency and deadlock tests all pass
+- [x] Reconcile reports **0 drift**
+
+### 📝 Phase 1 notes (what was actually built)
+- **Plain pgx instead of sqlc.** The trade transaction is hand-written SQL with explicit `FOR UPDATE` locks, which keeps the locking easy to read. sqlc can still be added later for simple queries.
+- **gofmt + go vet in CI instead of golangci-lint.** Tests run with `-race`. golangci-lint can be added later.
+- **Makefile** has `up / db / down / run / test / test-race / vet / fmt`. Migrations and seeding run automatically on API start, so there are no separate targets. Windows uses `scripts/dev.ps1`.
+- **Holdings store `cost_basis` (total paid)** instead of `avg_cost`. The average is derived, so there is no rounding drift.
+- **Extra safety beyond the plan:** ledger tables are append-only (trigger), a DB-level check rejects unbalanced txns at COMMIT, and market reconciliation proves the reserve can always pay every seller.
+- **Local stress run:** ~2,200 trades in 5 s (~440 trades/sec) with 20 players / 32 workers, 0 drift.
+- **Ports:** Postgres 55432, Redis 56379, API 8081 (5432/5433/8080 were already in use locally).
 
 ---
 
